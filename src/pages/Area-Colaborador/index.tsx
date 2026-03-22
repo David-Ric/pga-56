@@ -68,6 +68,7 @@ import { moeda } from '../../Masks/Masks';
 import FooterMobile from '../../components/Footer/FooterMobile';
 import { Circle } from 'rc-progress';
 import { AiFillCheckCircle } from 'react-icons/ai';
+import { versaoFront } from '../../data/indexedDB';
 
 interface Comunicado {
   id: number;
@@ -4033,22 +4034,193 @@ ORDER BY 1,3`;
                                   );
                                   setEnviarStatusIsDelete(false);
                                   setShowEnviarStatus(true);
+                                  const palmpv = String(
+                                    pedidoVisualizar?.palMPV ?? ''
+                                  );
+                                  const db = await (await import('idb')).openDB(
+                                    'pgamobile',
+                                    (await import('../../data/indexedDB')).versao
+                                  );
+                                  let cabLocal: any | null = null;
+                                  let itensLocal: any[] = [];
+                                  try {
+                                    const tx = db.transaction(
+                                      'cabecalhoPedidoVenda',
+                                      'readonly'
+                                    );
+                                    const store = tx.objectStore(
+                                      'cabecalhoPedidoVenda'
+                                    );
+                                    const all = await store.getAll();
+                                    cabLocal =
+                                      all.find(
+                                        (c: any) =>
+                                          String(c?.palMPV) === palmpv
+                                      ) || null;
+                                    await tx.done;
+                                  } catch {}
+                                  try {
+                                    const tx = db.transaction(
+                                      'itemPedidoVenda',
+                                      'readonly'
+                                    );
+                                    const store = tx.objectStore(
+                                      'itemPedidoVenda'
+                                    );
+                                    const all = await store.getAll();
+                                    itensLocal =
+                                      all.filter(
+                                        (i: any) =>
+                                          String(i?.palMPV) === palmpv
+                                      ) || [];
+                                    await tx.done;
+                                  } catch {}
+
+                                  const hasLocal =
+                                    !!cabLocal &&
+                                    Array.isArray(itensLocal) &&
+                                    itensLocal.length > 0;
+
+                                  const payloadBase = {
+                                    vendedorId: usuario.username,
+                                    parceiroId:
+                                      cabLocal?.parceiroId ??
+                                      pedidoVisualizar?.parceiroId,
+                                    id: pedidoVisualizar?.id,
+                                    filial:
+                                      cabLocal?.filial ?? pedidoVisualizar?.filial,
+                                    palMPV: palmpv,
+                                    tipoNegociacaoId:
+                                      cabLocal?.tipoNegociacaoId ??
+                                      pedidoVisualizar?.tipoNegociacaoId,
+                                    data: cabLocal?.data ?? pedidoVisualizar?.data,
+                                    pedido: '',
+                                    tipPed: cabLocal?.tipPed ?? pedidoVisualizar?.tipPed,
+                                    valor: cabLocal?.valor ?? pedidoVisualizar?.valor,
+                                    dataEntrega:
+                                      cabLocal?.dataEntrega ??
+                                      pedidoVisualizar?.dataEntrega,
+                                    observacao:
+                                      cabLocal?.observacao ??
+                                      pedidoVisualizar?.observacao,
+                                    ativo: 'S',
+                                    versao: versaoFront,
+                                  };
+
+                                  if (hasLocal) {
+                                    try {
+                                      await api.post('/api/CabecalhoPedidoVenda', {
+                                        ...payloadBase,
+                                        status:
+                                          String(pedidoVisualizar?.status || '').trim() ||
+                                          'Não Enviado',
+                                      });
+                                    } catch (error: any) {
+                                      const msg = String(
+                                        error?.response?.data?.message ??
+                                          error?.message ??
+                                          'Erro ao comunicar com servidor Sankhya!'
+                                      );
+                                      setEnviarStatusErro(true);
+                                      setEnviarStatusMsg(msg);
+                                      throw error;
+                                    }
+
+                                    const itensEnviar = itensLocal.map(
+                                      ({ id, sincronizado, ...rest }: any) => rest
+                                    );
+                                    const totalItensSalvar = itensEnviar.length;
+                                    try {
+                                      const respAntes = await api.get(
+                                        `/api/ItemPedidoVenda/filter/pedidoId?pagina=1&totalpagina=999&pedidoId=${encodeURIComponent(
+                                          palmpv
+                                        )}`
+                                      );
+                                      const totalServidorAntes = Number(
+                                        (respAntes as any)?.data?.total ?? 0
+                                      );
+                                      if (totalServidorAntes === 0) {
+                                        await api.post(
+                                          '/api/ItemPedidoVenda/Lista',
+                                          itensEnviar
+                                        );
+                                      } else if (
+                                        totalServidorAntes !== totalItensSalvar
+                                      ) {
+                                        const msg = `Itens no servidor (${totalServidorAntes}) diferente do total local (${totalItensSalvar}).`;
+                                        setEnviarStatusErro(true);
+                                        setEnviarStatusMsg(msg);
+                                        throw new Error(msg);
+                                      }
+                                    } catch (error: any) {
+                                      const msg = String(
+                                        error?.response?.data?.message ??
+                                          error?.message ??
+                                          'Erro ao comunicar com servidor Sankhya!'
+                                      );
+                                      setEnviarStatusErro(true);
+                                      setEnviarStatusMsg(msg);
+                                      throw error;
+                                    }
+
+                                    try {
+                                      const resp = await api.get(
+                                        `/api/ItemPedidoVenda/filter/pedidoId?pagina=1&totalpagina=999&pedidoId=${encodeURIComponent(
+                                          palmpv
+                                        )}`
+                                      );
+                                      const totalSalvos = Number(
+                                        (resp as any)?.data?.total ?? 0
+                                      );
+                                      if (totalSalvos !== totalItensSalvar) {
+                                        const msg = `Itens salvos no servidor (${totalSalvos}) diferente do total local (${totalItensSalvar}).`;
+                                        setEnviarStatusErro(true);
+                                        setEnviarStatusMsg(msg);
+                                        throw new Error(msg);
+                                      }
+                                    } catch (error: any) {
+                                      const msg = String(
+                                        error?.response?.data?.message ??
+                                          error?.message ??
+                                          'Erro ao validar itens no servidor!'
+                                      );
+                                      setEnviarStatusErro(true);
+                                      setEnviarStatusMsg(msg);
+                                      throw error;
+                                    }
+                                  } else {
+                                    try {
+                                      const resp = await api.get(
+                                        `/api/CabecalhoPedidoVenda/palmpv/${encodeURIComponent(
+                                          palmpv
+                                        )}`
+                                      );
+                                      const cab = (resp as any)?.data || {};
+                                      const itensEmb = Array.isArray(cab?.itens)
+                                        ? cab.itens
+                                        : [];
+                                      if (itensEmb.length === 0) {
+                                        const msg =
+                                          'Pedido sem itens no servidor. Não é possível enviar ao Sankhya.';
+                                        setEnviarStatusErro(true);
+                                        setEnviarStatusMsg(msg);
+                                        throw new Error(msg);
+                                      }
+                                    } catch (error: any) {
+                                      const msg = String(
+                                        error?.response?.data?.message ??
+                                          error?.message ??
+                                          'Erro ao validar itens no servidor!'
+                                      );
+                                      setEnviarStatusErro(true);
+                                      setEnviarStatusMsg(msg);
+                                      throw error;
+                                    }
+                                  }
                                   try {
                                     await api.post('/api/CabecalhoPedidoVenda', {
-                                      vendedorId: usuario.username,
-                                      parceiroId: pedidoVisualizar?.parceiroId,
-                                      id: pedidoVisualizar?.id,
-                                      filial: pedidoVisualizar?.filial,
-                                      palMPV: pedidoVisualizar?.palMPV,
-                                      tipoNegociacaoId: pedidoVisualizar?.tipoNegociacaoId,
-                                      data: pedidoVisualizar?.data,
-                                      pedido: '',
+                                      ...payloadBase,
                                       status: 'Processar',
-                                      tipPed: pedidoVisualizar?.tipPed,
-                                      valor: pedidoVisualizar?.valor,
-                                      dataEntrega: pedidoVisualizar?.dataEntrega,
-                                      observacao: pedidoVisualizar?.observacao,
-                                      ativo: 'S',
                                     });
                                   } catch (error: any) {
                                     const msg = String(
@@ -4061,27 +4233,47 @@ ORDER BY 1,3`;
                                     throw error;
                                   }
                                   try {
-                                    const db = await (await import('idb')).openDB(
-                                      'pgamobile',
-                                      (await import('../../data/indexedDB')).versao
-                                    );
-                                    const tx = db.transaction(
-                                      'cabecalhoPedidoVenda',
-                                      'readwrite'
-                                    );
-                                    const store = tx.objectStore('cabecalhoPedidoVenda');
-                                    const all = await store.getAll();
-                                    for (const cab of all) {
-                                      if (
-                                        String(cab?.palMPV) ===
-                                        String(pedidoVisualizar?.palMPV)
-                                      ) {
-                                        cab.sincronizado = 'S';
-                                        cab.status = 'Processar';
-                                        await store.put(cab);
-                                      }
+                                    if (hasLocal) {
+                                      try {
+                                        const tx = db.transaction(
+                                          'itemPedidoVenda',
+                                          'readwrite'
+                                        );
+                                        const store = tx.objectStore(
+                                          'itemPedidoVenda'
+                                        );
+                                        const all = await store.getAll();
+                                        for (const item of all) {
+                                          if (
+                                            String(item?.palMPV) === palmpv
+                                          ) {
+                                            item.sincronizado = 'S';
+                                            await store.put(item);
+                                          }
+                                        }
+                                        await tx.done;
+                                      } catch {}
                                     }
-                                    await tx.done;
+                                    try {
+                                      const tx = db.transaction(
+                                        'cabecalhoPedidoVenda',
+                                        'readwrite'
+                                      );
+                                      const store = tx.objectStore(
+                                        'cabecalhoPedidoVenda'
+                                      );
+                                      const all = await store.getAll();
+                                      for (const cab of all) {
+                                        if (String(cab?.palMPV) === palmpv) {
+                                          if (hasLocal) {
+                                            cab.sincronizado = 'S';
+                                          }
+                                          cab.status = 'Processar';
+                                          await store.put(cab);
+                                        }
+                                      }
+                                      await tx.done;
+                                    } catch {}
                                   } catch {}
                                   setListaPendEnvio((prev) =>
                                     prev.filter(
