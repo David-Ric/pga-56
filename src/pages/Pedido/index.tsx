@@ -2877,7 +2877,7 @@ function PedidoVendas() {
       'entrou aquiiiii.....................................................................................................'
     );
 
-    if (isMobile) {
+    if (!isOnline) {
       try {
         const db = await openDB<PgamobileDB>('pgamobile', versao);
         const transaction = db.transaction('grupoProduto', 'readonly');
@@ -5788,7 +5788,10 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
 
         setCodTabela(response.data.data[0].tabelaPreco.id);
         codTabela = response.data.data[0].tabelaPreco.id;
-        GetiTensTabelaPreco();
+        (async () => {
+          await GetGeralItens();
+          await GetiTensTabelaPreco();
+        })();
       })
       .catch((error) => {
         console.log('Ocorreu um erro');
