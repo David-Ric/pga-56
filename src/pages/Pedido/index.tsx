@@ -11685,219 +11685,171 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
       ? String(localStorage.getItem('PedidoSelecionadoOrigem') || '')
       : '';
     const forceLocalOrigem = origemModal === 'local';
-    if (isMobile && mobileListaTab === 'api' && !forceLocalOrigem) {
-      await api
-        .get(
-          `/api/ItemPedidoVenda/filter/pedidoId?pagina=1&totalpagina=999&pedidoId=${pedidoId ?? idPedidoSelecionado}`
-        )
-        .then((resp) => {
-          const itensVindoGet: iItemPedidoVenda[] = resp?.data?.data ?? [];
-          setSucess(100);
-          sucess = 100;
-          setItensPedidoSelecionadoList(itensVindoGet);
-          itensPedidoSelecionadoList = itensVindoGet;
-          setTotalPaginasItens(Math.ceil(itensVindoGet.length / qtdePaginaItens));
-          totalPaginasItens = Math.ceil(itensVindoGet.length / qtdePaginaItens);
-          if (totalPaginasItens > 0 && paginaItens > totalPaginasItens) {
-            setPaginaItens(totalPaginasItens);
-            return;
-          }
-          setItensPedidoSelecionado(
-            itensVindoGet.slice(
-              (paginaItens - 1) * qtdePaginaItens,
-              paginaItens * qtdePaginaItens
-            ) || []
-          );
-          itensPedidoSelecionado =
-            itensVindoGet.slice(
-              (paginaItens - 1) * qtdePaginaItens,
-              paginaItens * qtdePaginaItens
-            ) || [];
-          let somaTotalIpiGet = 0;
-          itensVindoGet.forEach((item: any) => {
-            const valorCalculado = item?.produto?.aliIpi
-              ? item.valTotal + item.valTotal * (item.produto?.aliIpi / 100)
-              : item.valTotal;
-            somaTotalIpiGet += valorCalculado;
-          });
-          setValorPedidoSelecionado(
-            itensVindoGet.reduce(
-              (accumulator: any, item: any) => accumulator + item.valTotal,
-              0
-            )
-          );
-          valorPedidoSelecionado = itensVindoGet.reduce(
-            (accumulator: any, item: any) => accumulator + item.valTotal,
-            0
-          );
-          setIpiEscolhido(somaTotalIpiGet);
-          IpiEscolhido = somaTotalIpiGet;
-          if (modalList) {
-            setShowMensageLoading(false);
-            setPesquisaPedido(true);
-            pesquisaPedido = true;
-          } else {
-            setShowMensageLoading(false);
-          }
-        })
-        .catch(() => {
-          setLoading(false);
-          setShowMensageLoading(false);
-        });
-      return;
-    }
-    if (isMobile) {
-      const pedidoSelIdLS = Number(
-        localStorage.getItem('PedidoSelecionadoId') || '0'
-      );
-      const abrirViaListaNaoEnviado = String(
-        localStorage.getItem('@Portal/PedidoEmDigitacao') || ''
-      ) === 'true';
-      if (abrirViaListaNaoEnviado && pedidoSelIdLS > 0 && !forceLocalOrigem) {
-        try {
-          const resp = await api.get(
-            `/api/ItemPedidoVenda/filter/pedidoId?pagina=1&totalpagina=999&pedidoId=${pedidoSelIdLS}`
-          );
-          let itensVindoGet: iItemPedidoVenda[] = resp?.data?.data ?? [];
-          if (!Array.isArray(itensVindoGet) || itensVindoGet.length === 0) {
-            const palmpvLS = String(
-              localStorage.getItem('PedidoSelecionadoPALMPV') || ''
-            ).trim();
-            const resp2 = await api.get(
-              `/api/ItemPedidoVenda/filter/pedidoId?pagina=1&totalpagina=999&pedidoId=${palmpvLS}`
-            );
-            itensVindoGet = resp2?.data?.data ?? [];
-          }
-          setSucess(100);
-          sucess = 100;
-          setItensPedidoSelecionadoList(itensVindoGet);
-          itensPedidoSelecionadoList = itensVindoGet;
-          setTotalPaginasItens(Math.ceil(itensVindoGet.length / qtdePaginaItens));
-          totalPaginasItens = Math.ceil(itensVindoGet.length / qtdePaginaItens);
-          if (totalPaginasItens > 0 && paginaItens > totalPaginasItens) {
-            setPaginaItens(totalPaginasItens);
-            return;
-          }
-          setItensPedidoSelecionado(
-            itensVindoGet.slice(
-              (paginaItens - 1) * qtdePaginaItens,
-              paginaItens * qtdePaginaItens
-            ) || []
-          );
-          itensPedidoSelecionado =
-            itensVindoGet.slice(
-              (paginaItens - 1) * qtdePaginaItens,
-              paginaItens * qtdePaginaItens
-            ) || [];
-          let somaTotalIpiGet = 0;
-          itensVindoGet.forEach((item: any) => {
-            const valorCalculado = item?.produto?.aliIpi
-              ? item.valTotal + item.valTotal * (item.produto.aliIpi / 100)
-              : item.valTotal;
-            somaTotalIpiGet += valorCalculado;
-          });
-          setValorPedidoSelecionado(
-            itensVindoGet.reduce(
-              (accumulator: any, item: any) => accumulator + item.valTotal,
-              0
-            )
-          );
-          valorPedidoSelecionado = itensVindoGet.reduce(
-            (accumulator: any, item: any) => accumulator + item.valTotal,
-            0
-          );
-          setIpiEscolhido(somaTotalIpiGet);
-          IpiEscolhido = somaTotalIpiGet;
-          if (modalList) {
-            setShowMensageLoading(false);
-          } else {
-            setShowMensageLoading(false);
-          }
-        } catch {
-          setLoading(false);
-          setShowMensageLoading(false);
-        }
+    const aplicarItens = (itensVindoGet: iItemPedidoVenda[]) => {
+      setSucess(100);
+      sucess = 100;
+      setItensPedidoSelecionadoList(itensVindoGet);
+      itensPedidoSelecionadoList = itensVindoGet;
+      setTotalPaginasItens(Math.ceil(itensVindoGet.length / qtdePaginaItens));
+      totalPaginasItens = Math.ceil(itensVindoGet.length / qtdePaginaItens);
+      if (totalPaginasItens > 0 && paginaItens > totalPaginasItens) {
+        setPaginaItens(totalPaginasItens);
         return;
       }
-      try {
-        const db = await openDB<PgamobileDB>('pgamobile', versao);
-        const transaction = db.transaction('itemPedidoVenda', 'readonly');
-        const store = transaction.objectStore('itemPedidoVenda');
-        setSucess(100);
-        sucess = 100;
-        const alvo = String(palMPVEscolhido).trim();
-        let itensVindoGet: iItemPedidoVenda[] = [];
-        if (alvo) {
-          try {
-            const idx = (store as any).index('palMPV');
-            itensVindoGet = (await idx.getAll(alvo as any)) as any;
-          } catch {
-            const todosItens = await store.getAll();
-            itensVindoGet = (todosItens as any[]).filter(
-              (item: any) => String(item?.palMPV || item?.palmpv || '').trim() === alvo
-            ) as any;
-          }
-        }
+      setItensPedidoSelecionado(
+        itensVindoGet.slice(
+          (paginaItens - 1) * qtdePaginaItens,
+          paginaItens * qtdePaginaItens
+        ) || []
+      );
+      itensPedidoSelecionado =
+        itensVindoGet.slice(
+          (paginaItens - 1) * qtdePaginaItens,
+          paginaItens * qtdePaginaItens
+        ) || [];
 
-        console.log('itens vindo do get', itensVindoGet);
-        setItensPedidoSelecionadoList(itensVindoGet);
-        itensPedidoSelecionadoList = itensVindoGet;
-        setTotalPaginasItens(Math.ceil(itensVindoGet.length / qtdePaginaItens));
-        totalPaginasItens = Math.ceil(itensVindoGet.length / qtdePaginaItens);
-        if (totalPaginasItens > 0 && paginaItens > totalPaginasItens) {
-          setPaginaItens(totalPaginasItens);
-          return;
-        }
-        console.log('Itens tabela preço:', itensVindoGet);
-        setItensPedidoSelecionado(
-          itensVindoGet.slice(
-            (paginaItens - 1) * qtdePaginaItens,
-            paginaItens * qtdePaginaItens
-          ) || []
-        );
-        itensPedidoSelecionado =
-          itensVindoGet.slice(
-            (paginaItens - 1) * qtdePaginaItens,
-            paginaItens * qtdePaginaItens
-          ) || [];
+      let somaTotalIpiGet = 0;
+      itensVindoGet.forEach((item: any) => {
+        const ali = item?.produto?.aliIpi;
+        const valorCalculado = ali
+          ? Number(item.valTotal || 0) + Number(item.valTotal || 0) * (Number(ali) / 100)
+          : Number(item.valTotal || 0);
+        somaTotalIpiGet += valorCalculado;
+      });
 
-        let somaTotalIpiGet = 0;
-        itensVindoGet.forEach((item: any) => {
-          const valorCalculado = item.produto.aliIpi
-            ? item.valTotal + item.valTotal * (item.produto.aliIpi / 100)
-            : item.valTotal;
-          somaTotalIpiGet += valorCalculado;
-        });
-
-        setValorPedidoSelecionado(
-          itensVindoGet.reduce(
-            (accumulator: any, item: any) => accumulator + item.valTotal,
-            0
-          )
-        );
-        valorPedidoSelecionado = itensVindoGet.reduce(
-          (accumulator: any, item: any) => accumulator + item.valTotal,
-          0
-        );
-        setIpiEscolhido(somaTotalIpiGet);
-        IpiEscolhido = somaTotalIpiGet;
-        if (modalList) {
-          setShowMensageLoading(false);
-          setPesquisaPedido(true);
-          pesquisaPedido = true;
-        } else {
-          setShowMensageLoading(false);
-        }
-      } catch (error) {
-        setLoading(false);
-        console.log('Ocorreu um erro', error);
+      const somaItens = itensVindoGet.reduce(
+        (accumulator: any, item: any) => accumulator + Number(item?.valTotal || 0),
+        0
+      );
+      setValorPedidoSelecionado(somaItens);
+      valorPedidoSelecionado = somaItens;
+      setIpiEscolhido(somaTotalIpiGet);
+      IpiEscolhido = somaTotalIpiGet;
+      if (modalList) {
+        setShowMensageLoading(false);
+        setPesquisaPedido(true);
+        pesquisaPedido = true;
+      } else {
+        setShowMensageLoading(false);
       }
+    };
+
+    const getItensLocalPorPalmpv = async (palmpv: string) => {
+      const db = await openDB<PgamobileDB>('pgamobile', versao);
+      const transaction = db.transaction('itemPedidoVenda', 'readonly');
+      const store = transaction.objectStore('itemPedidoVenda');
+      const alvo = String(palmpv || '').trim();
+      if (!alvo) return [] as iItemPedidoVenda[];
+      try {
+        const idx = (store as any).index('palMPV');
+        return ((await idx.getAll(alvo as any)) as any) || [];
+      } catch {
+        const todosItens = await store.getAll();
+        return ((todosItens as any[]).filter(
+          (item: any) => String(item?.palMPV || item?.palmpv || '').trim() === alvo
+        ) as any) || [];
+      }
+    };
+
+    const getItensApi = async (pedidoIdApi: string | number, palmpvFallback?: string) => {
+      try {
+        const resp = await api.get(
+          `/api/ItemPedidoVenda/filter/pedidoId?pagina=1&totalpagina=999&pedidoId=${encodeURIComponent(
+            String(pedidoIdApi ?? '')
+          )}`
+        );
+        let itens: iItemPedidoVenda[] = resp?.data?.data ?? [];
+        if ((!Array.isArray(itens) || itens.length === 0) && palmpvFallback) {
+          const resp2 = await api.get(
+            `/api/ItemPedidoVenda/filter/pedidoId?pagina=1&totalpagina=999&pedidoId=${encodeURIComponent(
+              String(palmpvFallback || '')
+            )}`
+          );
+          itens = resp2?.data?.data ?? [];
+        }
+        return Array.isArray(itens) ? itens : [];
+      } catch {
+        return [] as iItemPedidoVenda[];
+      }
+    };
+
+    if (isMobile) {
+      const palAtual = String(
+        palMPVEscolhido || localStorage.getItem('PedidoSelecionadoPALMPV') || ''
+      ).trim();
+      const totalPedido = (() => {
+        const v1 = Number(valorPedidoSelecionado || 0);
+        if (v1 > 0) return v1;
+        const v2 = Array.isArray(cabecalhoPedido)
+          ? Number(cabecalhoPedido[0]?.valor || 0)
+          : Number((cabecalhoPedido as any)?.valor || 0);
+        if (v2 > 0) return v2;
+        const v3 = Array.isArray(pedidoSelecao)
+          ? Number(pedidoSelecao[0]?.valor || 0)
+          : Number((pedidoSelecao as any)?.valor || 0);
+        if (v3 > 0) return v3;
+        try {
+          return Number(localStorage.getItem('PedidoInfoValor') || '0');
+        } catch {
+          return 0;
+        }
+      })();
+      let itensLocal: iItemPedidoVenda[] = [];
+      if (palAtual) {
+        try {
+          itensLocal = await getItensLocalPorPalmpv(palAtual);
+        } catch {
+          itensLocal = [];
+        }
+      }
+      const somaLocal = itensLocal.reduce(
+        (acc, it: any) => acc + Number(it?.valTotal || 0),
+        0
+      );
+      const bateTotal =
+        !forceLocalOrigem &&
+        itensLocal.length > 0 &&
+        totalPedido > 0 &&
+        Math.abs(somaLocal - totalPedido) < 0.01;
+
+      if (bateTotal) {
+        aplicarItens(itensLocal);
+        return;
+      }
+
+      if (!forceLocalOrigem && isOnline) {
+        const pedidoIdEfetivo =
+          pedidoId ??
+          idPedidoSelecionado ??
+          Number(localStorage.getItem('PedidoSelecionadoId') || '0');
+        const itensApi = await getItensApi(pedidoIdEfetivo, palAtual);
+        aplicarItens(itensApi);
+        return;
+      }
+
+      aplicarItens(itensLocal);
+      return;
     } else {
       try {
         const response = await api.get(
           `/api/ItemPedidoVenda/filter/pedidoId?pagina=1&totalpagina=999&pedidoId=${pedidoId ?? idPedidoSelecionado ?? Number(localStorage.getItem('PedidoSelecionadoId') || '0')}`
         );
         let itensVindoGet: iItemPedidoVenda[] = response?.data?.data ?? [];
+        if (!Array.isArray(itensVindoGet) || itensVindoGet.length === 0) {
+          const palmpvFallback = String(
+            palMPVEscolhido || localStorage.getItem('PedidoSelecionadoPALMPV') || ''
+          ).trim();
+          if (palmpvFallback) {
+            try {
+              const response2 = await api.get(
+                `/api/ItemPedidoVenda/filter/pedidoId?pagina=1&totalpagina=999&pedidoId=${encodeURIComponent(
+                  palmpvFallback
+                )}`
+              );
+              itensVindoGet = response2?.data?.data ?? [];
+            } catch {}
+          }
+        }
         if (!Array.isArray(itensVindoGet) || itensVindoGet.length === 0) {
           try {
             const db = await openDB<PgamobileDB>('pgamobile', versao);

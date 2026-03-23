@@ -35,6 +35,14 @@ import { Link } from 'react-router-dom';
 import Table from 'react-bootstrap/Table';
 import Paginacao from '../../components/Paginacao/index';
 import {
+  PDFDownloadLink,
+  Page,
+  Text,
+  View,
+  Document,
+  StyleSheet,
+} from '@react-pdf/renderer';
+import {
   graficoTotal,
   valorAnoAnterior,
   valorAnoAtual,
@@ -317,6 +325,77 @@ export default function AreaColaborador() {
       return `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
     return d;
+  };
+
+  const pdfStyles = StyleSheet.create({
+    page: { padding: 18, fontSize: 10 },
+    header: { fontSize: 14, fontWeight: 700, marginBottom: 8 },
+    subHeader: { fontSize: 10, marginBottom: 2 },
+    table: { marginTop: 10, borderWidth: 1, borderColor: '#000' },
+    row: { flexDirection: 'row' },
+    rowHeader: { backgroundColor: '#e6e6e6' },
+    cell: { padding: 4, borderRightWidth: 1, borderRightColor: '#000' },
+    cellLast: { padding: 4 },
+    footer: { marginTop: 10, fontSize: 11, fontWeight: 700 },
+  });
+
+  const PDFFilePend = () => {
+    const agora = new Date();
+    const emissao = agora.toLocaleString('pt-BR');
+    const pal = String(pedidoVisualizar?.palMPV || '');
+    const st = String(pedidoVisualizar?.status || '');
+    const valor = Number(pedidoVisualizar?.valor || 0);
+
+    const itens = Array.isArray(itensVisualizar) ? itensVisualizar : [];
+
+    return (
+      <Document>
+        <Page style={pdfStyles.page}>
+          <Text style={pdfStyles.header}>PEDIDO</Text>
+          <Text style={pdfStyles.subHeader}>Emissão: {emissao}</Text>
+          <Text style={pdfStyles.subHeader}>Pedido Nº: {pal}</Text>
+          <Text style={pdfStyles.subHeader}>Status: {st}</Text>
+          <Text style={pdfStyles.subHeader}>
+            Cliente: {parceiroCodigo} - {parceiroNome} - {parceiroCnpj}
+          </Text>
+          <Text style={pdfStyles.subHeader}>Tipo Negociação: {tipoNegDesc}</Text>
+
+          <View style={pdfStyles.table}>
+            <View style={[pdfStyles.row, pdfStyles.rowHeader]}>
+              <Text style={[pdfStyles.cell, { width: '12%' }]}>Código</Text>
+              <Text style={[pdfStyles.cell, { width: '46%' }]}>Produto</Text>
+              <Text style={[pdfStyles.cell, { width: '10%', textAlign: 'right' }]}>Qtd.</Text>
+              <Text style={[pdfStyles.cell, { width: '16%', textAlign: 'right' }]}>Vlr. Un</Text>
+              <Text style={[pdfStyles.cellLast, { width: '16%', textAlign: 'right' }]}>Total</Text>
+            </View>
+            {itens.map((it: any, idx: number) => {
+              const cod = String(it?.produtoId ?? it?.produto?.id ?? '');
+              const desc = String(it?.descProduto ?? it?.produto?.nome ?? '');
+              const qtd = Number(it?.quant ?? 0);
+              const vlUn = Number(it?.valUnit ?? 0);
+              const vlTot = Number(it?.valTotal ?? 0);
+              return (
+                <View key={`row-${idx}`} style={pdfStyles.row}>
+                  <Text style={[pdfStyles.cell, { width: '12%' }]}>{cod}</Text>
+                  <Text style={[pdfStyles.cell, { width: '46%' }]}>{desc}</Text>
+                  <Text style={[pdfStyles.cell, { width: '10%', textAlign: 'right' }]}>
+                    {String(qtd)}
+                  </Text>
+                  <Text style={[pdfStyles.cell, { width: '16%', textAlign: 'right' }]}>
+                    {moeda(vlUn)}
+                  </Text>
+                  <Text style={[pdfStyles.cellLast, { width: '16%', textAlign: 'right' }]}>
+                    {moeda(vlTot)}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+
+          <Text style={pdfStyles.footer}>Total: R$ {moeda(valor)}</Text>
+        </Page>
+      </Document>
+    );
   };
 
   useEffect(() => {
@@ -4009,6 +4088,14 @@ ORDER BY 1,3`;
                         const bloqueado = visualizarSomente || st === 'enviado';
                         return (
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                        <PDFDownloadLink
+                          document={<PDFFilePend />}
+                          fileName={`nota_${String(pedidoVisualizar?.palMPV || 'pedido')}.pdf`}
+                          className="btn btn-primary"
+                          style={{ textDecoration: 'none' }}
+                        >
+                          Baixar Prévia Pedido
+                        </PDFDownloadLink>
                         {!bloqueado && (
                           <button
                             className="btn btn-danger"
